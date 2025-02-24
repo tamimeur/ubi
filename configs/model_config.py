@@ -11,12 +11,12 @@ class AntibodyAffinityConfig:
     dropout: float = 0.1
     
     # Training parameters
-    batch_size: int = 32
-    learning_rate: float = 2e-5  # Smaller learning rate for fine-tuning
-    num_epochs: int = 20
-    warmup_ratio: float = 0.1
-    weight_decay: float = 0.01
-    gradient_clip_val: float = 1.0
+    batch_size: int = 16  # Smaller batch size for more updates
+    learning_rate: float = 1e-5  # Even smaller learning rate for stability
+    num_epochs: int = 30  # More epochs
+    warmup_ratio: float = 0.2  # Longer warmup
+    weight_decay: float = 0.1  # Stronger regularization
+    gradient_clip_val: float = 0.5  # Tighter gradient clipping
     
     # Data parameters
     data_dir: str = "data/skempi"

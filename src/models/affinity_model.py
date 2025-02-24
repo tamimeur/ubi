@@ -59,13 +59,33 @@ class AntibodyAffinityPredictor(pl.LightningModule):
         attention_mask = batch['attention_mask']
         labels = batch['labels']
         
+        # Normalize labels
+        labels_mean = labels.mean()
+        labels_std = labels.std().clamp(min=1e-6)  # Avoid division by zero
+        normalized_labels = (labels - labels_mean) / labels_std
+        
         predictions = self(input_ids, attention_mask)
-        loss = F.mse_loss(predictions, labels)
+        
+        # Check for NaN values
+        if torch.isnan(predictions).any() or torch.isnan(normalized_labels).any():
+            self.log('nan_detected', 1.0)
+            return None
+        
+        # Use normalized labels for loss
+        loss = F.mse_loss(predictions, normalized_labels)
+        
+        # Denormalize predictions for metric calculation
+        denorm_predictions = predictions * labels_std + labels_mean
         
         # Log metrics
-        self.train_mae(predictions, labels)
-        self.log('train_loss', loss)
+        self.train_mae(denorm_predictions, labels)
+        self.log('train_loss', loss, on_step=True, on_epoch=True)
         self.log('train_mae', self.train_mae, prog_bar=True)
+        
+        # Log additional metrics
+        self.log('batch_labels_mean', labels_mean, on_step=True)
+        self.log('batch_labels_std', labels_std, on_step=True)
+        self.log('learning_rate', self.optimizers().param_groups[0]['lr'], prog_bar=True)
         
         return loss
     
@@ -74,33 +94,49 @@ class AntibodyAffinityPredictor(pl.LightningModule):
         attention_mask = batch['attention_mask']
         labels = batch['labels']
         
+        # Normalize labels
+        labels_mean = labels.mean()
+        labels_std = labels.std().clamp(min=1e-6)  # Avoid division by zero
+        normalized_labels = (labels - labels_mean) / labels_std
+        
         predictions = self(input_ids, attention_mask)
-        val_loss = F.mse_loss(predictions, labels)
+        val_loss = F.mse_loss(predictions, normalized_labels)
+        
+        # Denormalize predictions for metric calculation
+        denorm_predictions = predictions * labels_std + labels_mean
         
         # Log metrics
-        self.val_mae(predictions, labels)
-        self.val_rmse(predictions, labels)
-        self.val_pearson(predictions, labels)
+        self.val_mae(denorm_predictions, labels)
+        self.val_rmse(denorm_predictions, labels)
+        self.val_pearson(denorm_predictions, labels)
         
         self.log('val_loss', val_loss, prog_bar=True)
         self.log('val_mae', self.val_mae, prog_bar=True)
         self.log('val_rmse', self.val_rmse, prog_bar=True)
         self.log('val_pearson', self.val_pearson, prog_bar=True)
+        
+        # Log additional metrics
+        self.log('val_labels_mean', labels_mean)
+        self.log('val_labels_std', labels_std)
     
     def configure_optimizers(self):
         # Only optimize the unfrozen parameters
         optimizer = torch.optim.AdamW(
             filter(lambda p: p.requires_grad, self.parameters()),
             lr=self.config.learning_rate,
-            weight_decay=self.config.weight_decay
+            weight_decay=self.config.weight_decay,
+            eps=1e-7  # Increased epsilon for better numerical stability
         )
         
-        # Learning rate scheduler
+        # Learning rate scheduler with warmup
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer,
             max_lr=self.config.learning_rate,
             total_steps=self.trainer.estimated_stepping_batches,
-            pct_start=self.config.warmup_ratio
+            pct_start=self.config.warmup_ratio,
+            div_factor=25.0,
+            final_div_factor=1000.0,
+            three_phase=True
         )
         
         return {

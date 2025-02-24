@@ -35,16 +35,16 @@ def train(config: AntibodyAffinityConfig):
         train_dataset,
         batch_size=config.batch_size,
         shuffle=True,
-        num_workers=4,
-        pin_memory=True
+        num_workers=0,  # Reduced for CPU training
+        pin_memory=False  # Disabled for CPU training
     )
     
     val_loader = DataLoader(
         val_dataset,
         batch_size=config.batch_size,
         shuffle=False,
-        num_workers=4,
-        pin_memory=True
+        num_workers=0,  # Reduced for CPU training
+        pin_memory=False  # Disabled for CPU training
     )
     
     # Initialize model
@@ -74,7 +74,10 @@ def train(config: AntibodyAffinityConfig):
         logger=wandb_logger,
         callbacks=callbacks,
         gradient_clip_val=config.gradient_clip_val,
-        deterministic=True
+        deterministic=True,
+        log_every_n_steps=1,  # Log every batch since we have a small dataset
+        enable_model_summary=True,
+        enable_progress_bar=True
     )
     
     # Train model
