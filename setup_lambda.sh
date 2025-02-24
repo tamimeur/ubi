@@ -8,7 +8,8 @@ sudo apt-get update
 sudo apt-get install -y python3.9-venv nvidia-cuda-toolkit
 
 # Clone repository
-git clone https://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@github.com/tamimeur/ubi.git
+# Clone repository (requires GITHUB_TOKEN environment variable)
+git clone https://${GITHUB_TOKEN}@github.com/tamimeur/ubi.git
 cd ubi/antibody_design
 
 # Create and activate virtual environment
