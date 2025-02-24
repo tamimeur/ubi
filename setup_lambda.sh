@@ -3,30 +3,36 @@
 # Exit on error
 set -e
 
-# Clone repository if not already present
-if [ ! -d "ubi" ]; then
-    git clone https://github.com/tamimeur/ubi.git
-    cd ubi/antibody_design
-else
-    cd ubi/antibody_design
-    git pull origin main
-fi
+# Install system dependencies
+sudo apt-get update
+sudo apt-get install -y python3.9-venv nvidia-cuda-toolkit
+
+# Clone repository
+git clone https://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@github.com/tamimeur/ubi.git
+cd ubi/antibody_design
 
 # Create and activate virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Install GPU-enabled dependencies
+# Upgrade pip and install dependencies
+pip install --upgrade pip
 pip install -r requirements-gpu.txt
 
 # Set environment variables
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0,1,2,3  # Lambda instances often have multiple GPUs
 export WANDB_PROJECT="antibody-affinity"
 
 # Create necessary directories
 mkdir -p checkpoints
 mkdir -p data
 
-# Run training
+# Verify CUDA setup
+python -c "import torch; print('CUDA available:', torch.cuda.is_available()); print('GPU count:', torch.cuda.device_count()); print('GPU name:', torch.cuda.get_device_name(0))"
+
+# Run training with nohup to keep it running if SSH disconnects
 echo "Starting training..."
-python src/train_affinity.py
+nohup python src/train_affinity.py > training.log 2>&1 &
+
+# Show the log in real-time
+tail -f training.log
