@@ -11,17 +11,16 @@ class AntibodyAffinityConfig:
     dropout: float = 0.1
     
     # Training parameters
-    batch_size: int = 32  # Increased for multi-GPU setup
+    batch_size: int = 32  # Larger batch size for GPU
     learning_rate: float = 1e-5  # Stable learning rate
     num_epochs: int = 30  # More epochs
     warmup_ratio: float = 0.2  # Longer warmup
     weight_decay: float = 0.1  # Stronger regularization
     gradient_clip_val: float = 0.5  # Tighter gradient clipping
     
-    # GPU training settings
-    strategy: str = "ddp"  # DistributedDataParallel
-    accelerator: str = "gpu"
-    devices: int = -1  # Use all available GPUs
+    # GPU settings
+    accelerator: str = "gpu"  # Use GPU
+    devices: int = 1  # Single GPU
     
     # Data parameters
     data_dir: str = "data/skempi"
